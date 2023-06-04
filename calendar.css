@@ -1,0 +1,69 @@
+.monthNav {
+    width:100%;
+}
+
+.monthNav >  * {
+    border: 1px solid black;
+    display:inline-block;
+    vertical-align: center;
+    padding: 10px;
+    border-radius: 3px;
+    margin-bottom: 2px;
+}
+
+
+.monthName {
+    text-align: center;
+}
+
+.weekRows {
+    width: fit-content;
+    border: 3px solid black;
+    border-radius: 5px;
+    border-spacing: 0;
+    display: block;
+}
+
+.weekRow {
+    height: calc(95% / 7);
+    box-sizing: border-box;
+    padding: 0px;
+}
+
+.day, .dayOfWeek {
+    width: 4%;
+    display: table-cell;
+    border: 1px ridge lightgrey;
+    height: 20px;
+}
+
+.daysOfWeek {
+    height: 5%;
+    border: 1px solid black;
+    box-sizing: border-box;
+    padding: 0px;
+    font-size: small;
+}
+
+.daysOfWeek > .day {
+    margin: auto;
+    text-align: center;
+}
+
+#eventHeader {
+    text-align: left;
+}
+
+.createEventForm {
+    display: block;
+}
+
+#account {
+    display: inline;
+}
+
+/* form > * {
+
+} */
+
+

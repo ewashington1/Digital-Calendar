@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+    <title>Mutaz and Evan's Awesome Calendar</title>
+    <link rel="stylesheet" href="calendar.css" type="text/css">
+    <script src="https://kit.fontawesome.com/7534c0f555.js" crossorigin="anonymous"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.3/jquery.min.js"></script>
+</head>
+
+<body>
+    <!--date setup (pasted from wiki)-->
+    <script>
+        (function () {
+            Date.prototype.deltaDays = function (c) { return new Date(this.getFullYear(), this.getMonth(), this.getDate() + c) };
+            Date.prototype.getSunday = function () { return this.deltaDays(-1 * this.getDay()) }
+        })();
+
+        function Week(c) {
+            this.sunday = c.getSunday();
+            this.nextWeek = function () { return new Week(this.sunday.deltaDays(7)) };
+            this.prevWeek = function () { return new Week(this.sunday.deltaDays(-7)) };
+            this.contains = function (b) { return this.sunday.valueOf() === b.getSunday().valueOf() };
+            this.getDates = function () { for (var b = [], a = 0; 7 > a; a++)b.push(this.sunday.deltaDays(a)); return b }
+        }
+        function Month(c, b) {
+            this.year = c; this.month = b;
+            this.nextMonth = function () { return new Month(c + Math.floor((b + 1) / 12), (b + 1) % 12) };
+            this.prevMonth = function () { return new Month(c + Math.floor((b - 1) / 12), (b + 11) % 12) };
+            this.getDateObject = function (a) { return new Date(this.year, this.month, a) };
+            this.getWeeks = function () {
+                var a = this.getDateObject(1), b = this.nextMonth().getDateObject(0), c = [], a = new Week(a);
+                for (c.push(a); !a.contains(b);)a = a.nextWeek(), c.push(a); return c
+            }
+        };
+        let currentDay = new Date();
+        let currentMonth = new Month(currentDay.getFullYear(), currentDay.getMonth());
+        // This updateCalendar() function only alerts the dates in the currently specified month.  You need to write it to modify the DOM (optionally using jQuery) to display the days and weeks in the current month.
+        function updateCalendar() {
+            var weeks = currentMonth.getWeeks();
+            let i = 0;
+            console.log(weeks);
+            for (var w in weeks) {
+                var days = weeks[w].getDates();
+                console.log(days + "Mutaz");
+                // days contains normal JavaScript Date objects.                   
+                // alert("Week starting on " + days[0]);
+                for (var d in days) {
+                    // You can see console.log() output in your JavaScript debugging tool, like Firebug, WebWit Inspector, or Dragonfly.
+                    console.log(days[d].toISOString());
+                    // alert(days[d].getMonth());
+                    // alert((days[d].toISOString()));
+                    const dayData = document.getElementsByClassName("day")[i];
+                    if (days[d].getMonth() == currentMonth.month) {
+                        let dayText = ""
+                        //if (document.getElementById("account").firstChild && document.getElementById("account").firstChild.data != "Not Logged In") {
+                        //dayText = document.createTextNode(days[d].getDate() + "\nEvents: ");
+                        //} else {
+                        dayText = document.createTextNode(days[d].getDate());
+                        //}
+                        if (dayData.firstChild != null) {
+                            dayData.replaceChild(dayText, dayData.firstChild);
+                        }
+                        else {
+                            dayData.appendChild(dayText);
+                        }
+                    } else {
+                        // delete everything thats not from current month
+                        if (dayData.firstChild != null) {
+                            dayData.removeChild(dayData.firstChild);
+                        }
+                    }
+                    i++;
+                }
+            }
+            // if current month only uses 5 rows, delete everything on the 6th
+            if (i < 37) {
+                for (let u = 35; u < 42; u++) {
+                    const dayData = document.getElementsByClassName("day")[u];
+                    if (dayData.firstChild != null) {
+                        dayData.removeChild(dayData.firstChild);
+                    }
+                }
+            }
+        }
+
+
+
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        let username = "";
+    </script>
+
+    <!--create user form-->
+    <form id="createUser">
+        <label>Create User: </label><input type="text" id="createUsername" placeholder="Username" required>
+        <input type="password" id="createPassword" placeholder="Password" required>
+        <button class="createSubmit" onsubmit="create(); return false;">Create</button>
+    </form>
+
+    <!--eventlistener for createUserSubmission-->
+    <script>
+        function create() {
+            event.preventDefault();
+
+            // how to sanatize 
+            const createUsername = document.getElementById("createUsername").value; // Get the username from the form
+            const createPassword = document.getElementById("createPassword").value; // Get the password from the form
+
+            // Make a URL-encoded string for passing POST data:
+            const data = { 'username': createUsername, 'password': createPassword };
+            fetch("create.php", {
+                method: 'POST',
+                body: JSON.stringify(data),
+                headers: { 'content-type': 'application/json' }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data.success ? "You have created an account!" : `Your account was not created: ${data.message}`);
+                    if (data.success) {
+                        usernameDisplay();
+                        sessionStorage.setItem("token", data.token);
+                    } else {
+                        alert(data.message);
+                    }
+                })
+                .catch(err => console.error(err));
+
+        }
+        document.getElementsByClassName("createSubmit")[0].addEventListener("click", create, false);
+    </script>
+
+    <!--login form-->
+    <form id="login">
+        <label>Login: </label><input type="text" id="username" placeholder="Username" required>
+        <input type="password" id="password" placeholder="Password" required>
+        <button class="loginSubmit" onsubmit="login(); return false;">Login</button>
+        <!--onclick="this.form.reset();"-->
+    </form>
+
+
+    <!--eventlistener for login submit-->
+    <script>
+        function login() {
+            event.preventDefault();
+
+            // how to sanatize 
+            const loginUsername = document.getElementById("username").value; // Get the username from the form
+            const loginPassword = document.getElementById("password").value; // Get the password from the form
+
+            // Make a URL-encoded string for passing POST data:
+            const data = { 'username': loginUsername, 'password': loginPassword };
+            fetch("login.php", {
+                method: 'POST',
+                body: JSON.stringify(data),
+                headers: { 'content-type': 'application/json' }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data.success ? "You've been logged in!" : `You were not logged in: ${data.message}`);
+                    if (data.success) {
+                        usernameDisplay();
+                        sessionStorage.setItem("token", data.token);
+                    } else {
+                        alert(data.message);
+                    }
+                })
+                .catch(err => console.error(err));
+
+
+        }
+        document.getElementsByClassName("loginSubmit")[0].addEventListener("click", login, false);
+    </script>
+
+    <!--list all events for the week-->
+    <!-- <script>
+        function weekEvents() {
+            const sendingOver = {'currentDay': currentDay};
+            fetch("weekList.php", {
+                method: 'POST',
+                body: JSON.stringify(sendingOver),
+                headers: { 'content-type': 'application/json' }})        
+        .then(response => response.json())
+                .then(data => {
+                    console.log(data.success ? "Weeks events found." : `Week events not found: ${data.message}`);
+                    if (data.success) {
+                        usernameDisplay();
+                        for (event in data.eventsInWeek) {
+                            const e = document.createElement("p");
+                            const br = document.createElement("br");
+                            e.appendChild(document.createTextEvent(event));
+                            document.appendChild(e, "body");
+                        }
+                    } else {
+                        alert(data.message);
+                    }
+                })
+                .catch(err => console.error(err));
+            }
+        weekEvents();
+    </script> -->
+
+    
+
+
+
+    <!--month navigation bar-->
+    <div class="monthNav">
+        <button class="prevMonth"><i class="fa-solid fa-arrow-left"></i></button>
+        <span class="monthName">curMonth</span>
+        <button class="nextMonth" id="nextMonth"><i class="fa-solid fa-arrow-right"></i></button>
+    </div>
+
+    <!--calendarDisplay html-->
+    <table class="weekRows">
+        <tr class="daysOfWeek">
+            <td class="dayOfWeek">S</td>
+            <td class="dayOfWeek">M</td>
+            <td class="dayOfWeek">T</td>
+            <td class="dayOfWeek">W</td>
+            <td class="dayOfWeek">Th</td>
+            <td class="dayOfWeek">F</td>
+            <td class="dayOfWeek">SA</td>
+        </tr>
+
+        <tr class="weekRow">
+            <td class="day"></td>
+            <td class="day"></td>
+            <td class="day"></td>
+            <td class="day"></td>
+            <td class="day"></td>
+            <td class="day"></td>
+            <td class="day"></td>
+        </tr>
+
+        <tr class="weekRow">
+            <td class="day"></td>
+            <td class="day"></td>
+            <td class="day"></td>
+            <td class="day"></td>
+            <td class="day"></td>
+            <td class="day"></td>
+            <td class="day"></td>
+        </tr>
+
+        <tr class="weekRow">
+            <td class="day"></td>
+            <td class="day"></td>
+            <td class="day"></td>
+            <td class="day"></td>
+            <td class="day"></td>
+            <td class="day"></td>
+            <td class="day"></td>
+        </tr>
+
+        <tr class="weekRow">
+            <td class="day"></td>
+            <td class="day"></td>
+            <td class="day"></td>
+            <td class="day"></td>
+            <td class="day"></td>
+            <td class="day"></td>
+            <td class="day"></td>
+        </tr>
+
+        <tr class="weekRow">
+            <td class="day"></td>
+            <td class="day"></td>
+            <td class="day"></td>
+            <td class="day"></td>
+            <td class="day"></td>
+            <td class="day"></td>
+            <td class="day"></td>
+        </tr>
+
+        <tr class="weekRow" id="exception">
+            <td class="day"></td>
+            <td class="day"></td>
+            <td class="day"></td>
+            <td class="day"></td>
+            <td class="day"></td>
+            <td class="day"></td>
+            <td class="day"></td>
+        </tr>
+    </table>
+
+<div id="eventHeader"></div>
+
+
+    <!--eventlistener for prev and next month-->
+    <script>
+        let monthText = document.getElementsByClassName("monthName")[0];
+        // start the month correctly
+        document.addEventListener("DOMContentLoaded", function (event) {
+            let nextMonthText = document.createTextNode(monthNames[currentMonth.month] + " " + currentMonth.year);
+            monthText.replaceChild(nextMonthText, monthText.firstChild);
+        }, false);
+
+        // change the month when the "next" button is pressed
+        document.getElementsByClassName("nextMonth")[0].addEventListener("click", function (event) {
+            currentMonth = currentMonth.nextMonth();
+            // alert(currentMonth.getDateObject);
+            let nextMonthText = document.createTextNode(monthNames[currentMonth.month] + " " + currentMonth.year);
+            monthText.replaceChild(nextMonthText, monthText.firstChild);
+            updateCalendar();
+            usernameDisplay();
+            // alert("The new month is " + currentMonth.month + " " + currentMonth.year);
+        }, false);
+
+        // change the month when the "next" button is pressed
+        document.getElementsByClassName("prevMonth")[0].addEventListener("click", function (event) {
+            currentMonth = currentMonth.prevMonth();
+            let nextMonthText = document.createTextNode(monthNames[currentMonth.month] + " " + currentMonth.year);
+            monthText.replaceChild(nextMonthText, monthText.firstChild);
+            updateCalendar();
+            usernameDisplay();
+        }, false);
+    </script>
+
+    <!--create event function-->
+    <script>
+        function creatingEvent() {
+            event.preventDefault();
+            // how to sanatize 
+
+            usernameDisplay();
+            username = document.getElementById("account").firstChild.data;
+            const eventTitle = document.getElementsByClassName("createEventTitle")[0].value;
+            const eventDes = document.getElementsByClassName("createEventText")[0].value;
+            const eventDate = date; // Get the date from the form
+            const eventTime = document.getElementById("eventTime").value;
+            const token = sessionStorage.getItem("token");
+
+            // Make a URL-encoded string for passing POST data:
+            const data = { 'username': username, 'event': eventTitle, 'description': eventDes, 'date': eventDate, 'time': eventTime,  'token': token}; //add eventDes
+            fetch("createEvent.php", {
+                method: 'POST',
+                body: JSON.stringify(data),
+                headers: { 'content-type': 'application/json' }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data.success ? "You've created a event!" : `You did not create a event: ${data.message}`);
+                    if (data.success) {
+                        document.getElementsByClassName("createEventForm")[0].remove();
+                    }
+                })
+                .catch(err => console.error(err));
+
+            // updating event counter where event is created
+            let eventCountData = { 'year': currentMonth.year, 'month': currentMonth.month, 'date': eventDate }
+            fetch("getSingleCount.php", {
+                method: 'POST',
+                body: JSON.stringify(eventCountData),
+                headers: { 'content-type': 'application/json' }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        let curDay = -1;
+                        for (let i = 0; i < document.getElementsByClassName("day").length; i++) {
+                            let dayData = document.getElementsByClassName("day")[i];
+                            if (!dayData.firstChild) {
+                                curDay++;
+                            } else {
+                                break;
+                            }
+                        }
+                        console.log(data.day + "d:c" + curDay);
+                        let dayData = document.getElementsByClassName("day")[Number(data.day) + curDay].firstChild;
+                        console.log(dayData);
+                        dayData.textContent = Number(data.day) + " (" + data.count + " Events)";
+                    }
+                })
+                .catch(err => console.error(err));
+
+            event.target.removeEventListener("click", creatingEvent, false);
+
+            updateEvents();
+            usernameDisplay();
+        }
+    </script>
+
+    <div id="events"></div>
+
+    <!--delete event function-->
+    <script>
+        function deleteEventFunc(event) {
+            const token = sessionStorage.getItem("token");
+            const eventId = { 'eventId': event.target.parentNode.children[3].firstChild.data, 'token': token };
+            fetch("deleteEvent.php", {
+                method: 'POST',
+                body: JSON.stringify(eventId),
+                headers: { 'content-type': 'application/json' }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data.success ? "You've successfully deleted the event!" : `Event couldn't be deleted: ${data.message}`);
+                    if (data.success) {
+                        updateEvents();
+                        // updating event counter where event is created
+                        let eventCountData = { 'year': currentMonth.year, 'month': currentMonth.month, 'date': date }
+                        fetch("getSingleCount.php", {
+                            method: 'POST',
+                            body: JSON.stringify(eventCountData),
+                            headers: { 'content-type': 'application/json' }
+                        })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    let curDay = -1;
+                                    for (let i = 0; i < document.getElementsByClassName("day").length; i++) {
+                                        let dayData = document.getElementsByClassName("day")[i];
+                                        if (!dayData.firstChild) {
+                                            curDay++;
+                                        } else {
+                                            break;
+                                        }
+                                    }
+                                    let dayData = document.getElementsByClassName("day")[Number(data.day) + curDay].firstChild;
+                                    dayData.textContent = Number(data.day) + " (" + data.count + " Events)";
+                                }
+                            })
+                            .catch(err => console.error(err));
+                    }
+                })
+                .catch(err => console.error(err));
+        }
+    </script>
+
+
+    <!--table event listener-->
+    <script>
+        let date = "";
+        //make inner function a callable function and call it when the page loads
+
+
+
+        //display events on the right side of screen
+        function updateEvents() {
+            if (document.getElementById("account").firstChild.data != "Not Logged In") {
+                const data = { 'date': date }; //add eventDes
+                fetch("getEvents.php", {
+                    method: 'POST',
+                    body: JSON.stringify(data),
+                    headers: { 'content-type': 'application/json' }
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log(data.success ? "You're retrieving events!" : `You're not retrieving events: ${data.message}`);
+                        if (data.success) {
+                            console.log(data.times + " This should be the times");
+
+                            if (document.getElementById("daysEvents")) {
+                                document.getElementById("daysEvents").remove();
+                            }
+                            const events = (document.createElement("div"));
+                            events.setAttribute("id", "daysEvents");
+                            for (let i = 0; i < data.events.length; i++) {
+                                const title = document.createElement("h1");
+                                title.appendChild(document.createTextNode(data.events[i]));
+                                title.setAttribute("class", "title");
+
+                                const des = document.createElement("p");
+                                des.appendChild(document.createTextNode(data.descriptions[i]));
+                                des.setAttribute("class", "des");
+
+                                const time = ((document.createElement("p")));
+                                time.appendChild(document.createTextNode(data.times[i]));
+                                time.setAttribute("class", "time");
+
+                                const deleteEvent = document.createElement("button");
+                                deleteEvent.addEventListener("click", deleteEventFunc, false);
+                                deleteEvent.setAttribute("class", "deleteForm");
+                                deleteEvent.appendChild(document.createTextNode("Delete Event"));
+
+                                const editEvent = document.createElement("button");
+                                editEvent.addEventListener("click", editEventFunc, false);
+                                editEvent.setAttribute("class", "editForm");
+                                editEvent.appendChild(document.createTextNode("Edit Event"));
+
+                                const eventId = document.createElement("p");
+                                eventId.setAttribute("hidden", true);
+                                eventId.setAttribute("id", "eventId");
+                                eventId.appendChild(document.createTextNode(data.ids[i]));
+
+                                const event = document.createElement("div");
+                                event.setAttribute("id", "event1");
+                                event.appendChild(title);
+                                event.appendChild(des);
+                                event.appendChild(time);
+                                event.appendChild(eventId);
+                                event.appendChild(editEvent);
+                                event.appendChild(deleteEvent);
+                                events.appendChild(event);
+                            }
+                            (document.getElementById("events")).appendChild(events);
+                        }
+                    })
+                    .catch(err => console.error(err));
+            } else {
+                document.getElementById("event1").remove();
+            }
+        }
+
+        document.getElementsByTagName("table")[0].addEventListener("click", function (e) {
+            usernameDisplay();
+            if (document.getElementById("account").firstChild && document.getElementById("account").firstChild.data != "Not Logged In") {
+                if (e.target.firstChild != null && !isNaN(parseInt(e.target.firstChild.data))) {
+
+                    date = new Date(currentMonth.year, currentMonth.month, parseInt(e.target.firstChild.data));
+                    //date = moment.format('YYYY-MM-D');
+                    //date = currentMonth.year + "-" + (currentMonth.month+1) + "-" + e.target.firstChild.data;
+                    alert(date);
+
+                    if (document.getElementsByClassName("createEvent").length == 0) {
+
+
+                        const eventTitle = document.createElement("input");
+                        eventTitle.setAttribute("placeholder", "Event title")
+                        eventTitle.setAttribute("class", "createEventTitle");
+
+                        const eventDes = document.createElement("textarea");
+                        eventDes.setAttribute("placeholder", "Event description")
+                        eventDes.setAttribute("class", "createEventText");
+
+                        //time input type
+                        const eventTime = document.createElement("input");
+                        eventTime.setAttribute("type", "time");
+                        eventTime.setAttribute("id", "eventTime");
+                        eventTime.setAttribute("min", "00:00");
+                        eventTime.setAttribute("max", "24:00");
+
+                        const eventButton = document.createElement("button");
+                        eventButton.addEventListener("click", creatingEvent, false);
+                        eventButton.appendChild(document.createTextNode("Create event"));
+                        eventButton.setAttribute("class", "createEvent");
+
+                        const eventForm = document.createElement("form");
+                        eventForm.setAttribute("class", "createEventForm");
+                        eventForm.appendChild(eventTitle);
+                        eventForm.appendChild(eventDes);
+                        eventForm.appendChild(eventTime);
+                        eventForm.appendChild(eventButton);
+                        document.getElementsByClassName("eventFormHolder")[0].appendChild(eventForm);
+                        //document.getElementsByClassName("createEvent")[0].addEventListener("click", creatingEvent(), false);
+                    }
+                    let eventHeader = document.getElementById("eventHeader");
+                    let eventHeaderText = document.createTextNode("Events on " + (currentMonth.month + 1) + "/" + parseInt(e.target.firstChild.data) + ":");
+                    if (!eventHeader.firstChild) {
+                        eventHeader.appendChild(eventHeaderText);
+                    } else {
+                        eventHeader.replaceChild(eventHeaderText, eventHeader.firstChild);
+                    }
+
+                    // display events on the right side of screen
+                    updateEvents();
+                }
+            }
+        }, false);
+
+    </script>
+
+
+
+    <!--holds account name-->
+    <label>Account:</label>
+    <p id="account"></p>
+
+    <!--username display / user verification / calender event-->
+    <script>
+        // better way to do this?
+        function usernameDisplay() {
+            fetch("session.php", {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data.success ? "You are currently logged in!" : `You are not logged in: ${data.message}`);
+                    const accountData = document.getElementById("account");
+                    let accName = document.createTextNode("Not Logged In");
+                    if (data.success) {
+                        //make login and create invisible
+                        document.getElementById("login").style.display = "none";
+                        document.getElementById("createUser").style.display = "none";
+                        document.getElementById("logout").style.display = "block";
+                        console.log("Check if username retrieved: " + data.message);
+                        accName = document.createTextNode(data.message);
+
+                        // puts the number of events for each date
+                        //console.log(document.getElementsByClassName("day")[7].firstChild.data + "preventing event spam");
+                        let findMonthDays = 0;
+                        if (document.getElementsByClassName("day")[7].firstChild.data > 1) {
+                            //let ourDay = 0;
+                            for (let i = 0; i < document.getElementsByClassName("day").length; i++) {
+                                //console.log(document.getElementsByClassName("day")[5].firstChild.data + "countEvent");                                
+                                let dayData = document.getElementsByClassName("day")[i];
+                                if (dayData.firstChild) {
+                                    //let findTotalDays = new Date (currentMonth.month, currentMonth.year, 0).getDate();
+                                    //console.log(findTotalDays + "length");
+                                    findMonthDays++;
+                                    //ourDay ++;
+                                    //let eventCountData = { 'year': currentMonth.year, 'month': currentMonth.month, 'day': ourDay}
+                                    //let eventCount = 0;
+                                    //fetch("getEventCount.php", {
+                                    //method: 'POST',
+                                    //body: JSON.stringify(eventCountData),
+                                    //headers: { 'content-type': 'application/json' }
+                                    //})
+                                    //.then(response => response.json())
+                                    //.then(data => {
+                                    //if (data.success) {
+                                    //eventCount = data.count;
+                                    //console.log(eventCount + "eventCount1");
+                                    //console.log(ourDay + "eventCount2");
+                                    //dayData.textContent += " (" + eventCount + " Events)";
+                                    //console.log(data.date + "eventDate");
+                                    //}
+                                    //})
+                                    //.catch(err => console.error(err));
+                                }
+                            }
+                            let eventCountData = { 'year': currentMonth.year, 'month': currentMonth.month, 'days': findMonthDays }
+                            fetch("getEventCount.php", {
+                                method: 'POST',
+                                body: JSON.stringify(eventCountData),
+                                headers: { 'content-type': 'application/json' }
+                            })
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (data.success) {
+                                        console.log(data.counts[20] + "counts?");
+                                        console.log(data.date + "eventDate");
+                                        let curDay = 0;
+                                        for (let i = 0; i < document.getElementsByClassName("day").length; i++) {
+                                            let dayData = document.getElementsByClassName("day")[i];
+                                            if (dayData.firstChild) {
+                                                dayData.textContent += " (" + data.counts[curDay] + " Events)";
+                                                curDay++;
+                                            }
+                                        }
+                                    }
+                                })
+                                .catch(err => console.error(err));
+                            console.log(findMonthDays + "length");
+                        }
+                        // create class name for username and access it later
+                    }
+                    if (accountData.firstChild) {
+                        accountData.replaceChild(accName, accountData.firstChild);
+                    } else {
+                        accountData.appendChild(accName);
+                    }
+
+                })
+                .catch(err => console.error(err));
+            // return usernameHolder;
+        }
+        usernameDisplay();
+    </script>
+
+    <!--logout form-->
+    <form id="logout">
+        <button class="logout" onsubmit="logout(); return false;">Logout</button>
+    </form>
+
+    <!--editEvent-->
+    <script>
+
+        function editingEvent(event) {
+            event.preventDefault();
+            // how to sanatize 
+
+            usernameDisplay();
+            username = document.getElementById("account").firstChild.data;
+            const eventTitle = document.getElementsByClassName("editEventTitle")[0].value;
+            const eventDes = document.getElementsByClassName("editEventText")[0].value;
+            const eventTime = document.getElementById("editEventTime").value;
+            const eventId = event.target.parentNode.children[3].firstChild.data;
+            const token = sessionStorage.getItem("token");
+
+            // Make a URL-encoded string for passing POST data:
+            const data = { 'event': eventTitle, 'description': eventDes, 'time': eventTime, 'eventId': eventId, 'token': token}; //add eventDes
+            fetch("editEvent.php", {
+                method: 'POST',
+                body: JSON.stringify(data),
+                headers: { 'content-type': 'application/json' }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data.success ? "You've successfully edited the event!" : `Edit couldn't be completed: ${data.message}`);
+                    if (data.success) {
+                        document.getElementsByClassName("editEventForm")[0].remove();
+                    }
+                })
+                .catch(err => console.error(err));
+
+            updateEvents();
+            usernameDisplay();
+        }
+
+        function editEventFunc(event) {
+            const eventInfo = {
+                'eventId': event.target.parentNode.children[3].firstChild.data,
+                'eventTitle': event.target.parentNode.children[0].firstChild.data,
+                'eventDes': event.target.parentNode.children[1].firstChild.data
+            }
+
+            if (document.getElementsByClassName("editEvent").length == 0) {
+
+                const eventTitle = document.createElement("input");
+                eventTitle.setAttribute("value", eventInfo.eventTitle)
+                eventTitle.setAttribute("class", "editEventTitle");
+
+                const eventDes = document.createElement("textarea");
+                eventDes.appendChild(document.createTextNode(eventInfo.eventDes));
+                eventDes.setAttribute("class", "editEventText");
+
+                //time input type
+                const eventTime = document.createElement("input");
+                eventTime.setAttribute("type", "time");
+                eventTime.setAttribute("id", "editEventTime");
+                eventTime.setAttribute("min", "00:00");
+                eventTime.setAttribute("max", "24:00");
+
+                const eventId = document.createElement("p");
+                eventId.setAttribute("hidden", true);
+                eventId.setAttribute("id", "eventId");
+                eventId.appendChild(document.createTextNode(eventInfo.eventId));
+
+                const eventButton = document.createElement("button");
+                eventButton.addEventListener("click", editingEvent, false);
+                eventButton.appendChild(document.createTextNode("Confirm Edits"));
+                eventButton.setAttribute("class", "editEvent");
+
+                const eventForm = document.createElement("form");
+                eventForm.setAttribute("class", "editEventForm");
+                eventForm.appendChild(eventTitle);
+                eventForm.appendChild(eventDes);
+                eventForm.appendChild(eventTime);
+                eventForm.appendChild(eventId);
+                eventForm.appendChild(eventButton);
+                document.getElementsByClassName("eventFormHolder")[0].appendChild(eventForm);
+            }
+        }
+    </script>
+
+
+    <!--eventlistener for logout-->
+    <script>
+        function logout() {
+            event.preventDefault();
+
+            // remove the displayed events
+            if (document.getElementById("event1")) {
+                while (document.getElementById("event1")) {
+                    document.getElementById("event1").remove();
+                }
+            }
+
+            //username = "";
+            fetch("logout.php", {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data.success ? "You have been logged out!" : `You were not logged out!`);
+                    if (data.success) {
+                        document.getElementById("logout").style.display = "none";
+                        usernameDisplay();
+                        //make create and login visible
+                        document.getElementById("createUser").style.display = "block";
+                        document.getElementById("login").style.display = "block";
+                        if (document.getElementsByClassName("createEventForm")[0]) {
+                            document.getElementsByClassName("createEventForm")[0].remove();
+                        }
+                        // remove event on right
+                        logoutDisplayCheck();
+                        if (document.getElementById("eventHeader")) {
+                            if (document.getElementById("eventHeader").firstChild) {
+                                document.getElementById("eventHeader").firstChild.remove();
+                            }
+                        }
+                        updateCalendar();
+                    }
+                })
+                .catch(err => console.error(err));
+
+        }
+        document.getElementsByClassName("logout")[0].addEventListener("click", logout, false);
+    </script>
+
+    <!--check if you need to make logout button invisible-->
+    <script>
+        function logoutDisplayCheck() {
+            if (!document.getElementById("account").firstChild) {
+                document.getElementById("logout").style.display = "none";
+            }
+        }
+        logoutDisplayCheck();
+        updateCalendar();
+    </script>
+
+    <div class="eventFormHolder"></div>
+
+</body>
+
+</html>
